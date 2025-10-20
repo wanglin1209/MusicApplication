@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>脆皮大学生听歌申请</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            color: white;
+            padding: 20px;
+            overflow: hidden; /* 防止出现滚动条导致越界计算 */
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 520px;
+            width: 100%;
+            margin-top: 120px; /* 下移，避免与顶部标题重叠造成的视觉模糊 */
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .button-container { display: none; }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-width: 120px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .agree-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .agree-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+        }
+
+        .reject-btn {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .reject-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.6);
+        }
+
+        .reject-btn.moving {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .agree-btn.growing {
+            animation: grow 0.3s ease-out;
+        }
+
+        @keyframes grow {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1.1); }
+        }
+
+        .message {
+            margin-top: 6px;
+            font-size: 0.95em;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            animation: sparkle 1s ease-out forwards;
+        }
+
+        @keyframes sparkle {
+            0% {
+                transform: scale(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1) rotate(180deg);
+                opacity: 0;
+            }
+        }
+        
+        /* 顶部标题区域 */
+        .header {
+            position: fixed;
+            top: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            pointer-events: none; /* 避免遮挡点击 */
+            z-index: 2000; /* 确保在任何模糊容器之上 */
+        }
+
+        .header h1 {
+            margin: 0;
+            white-space: nowrap; /* 一行显示 */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            animation: none; /* 关闭脉冲动画以稳定布局 */
+        }
+
+        /* 底部操作区：左右分布 */
+        .bottom-actions {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 60px; /* 接近最下方 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 80px; /* 左右内边距，靠两侧但不贴边 */
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>脆皮大学生在线向你发送了一封听歌申请</h1>
+    </div>
+
+    <div class="container">
+        <div class="message" id="message"></div>
+    </div>
+
+    <div class="bottom-actions">
+        <button class="btn agree-btn" id="agreeBtn">同意</button>
+        <button class="btn reject-btn" id="rejectBtn">拒绝</button>
+    </div>
+
+    <script>
+        let rejectCount = 0;
+        const agreeBtn = document.getElementById('agreeBtn');
+        const rejectBtn = document.getElementById('rejectBtn');
+        const message = document.getElementById('message');
+
+        // 计算给定元素的安全随机位置（使用元素实际尺寸）
+        function getSafeRandomPosition(el, extraPadding = 100) {
+            const viewportWidth = document.documentElement.clientWidth;
+            const viewportHeight = document.documentElement.clientHeight;
+            const rect = el.getBoundingClientRect();
+            const elWidth = Math.ceil(rect.width) || el.offsetWidth || 120;
+            const elHeight = Math.ceil(rect.height) || el.offsetHeight || 50;
+            const padding = Math.max(0, extraPadding);
+
+            const minX = padding;
+            const minY = padding;
+            const maxX = Math.max(minX, viewportWidth - elWidth - padding);
+            const maxY = Math.max(minY, viewportHeight - elHeight - padding);
+
+            if (maxX <= minX || maxY <= minY) {
+                // 居中兜底
+                const x = Math.max(minX, Math.floor((viewportWidth - elWidth) / 2));
+                const y = Math.max(minY, Math.floor((viewportHeight - elHeight) / 2));
+                return { x, y };
+            }
+
+            const x = Math.floor(minX + Math.random() * (maxX - minX));
+            const y = Math.floor(minY + Math.random() * (maxY - minY));
+            return { x: Math.min(Math.max(x, minX), maxX), y: Math.min(Math.max(y, minY), maxY) };
+        }
+
+        // 创建闪烁效果
+        function createSparkle(element) {
+            const rect = element.getBoundingClientRect();
+            const sparkle = document.createElement('div');
+            sparkle.className = 'sparkle';
+            sparkle.style.left = rect.left + rect.width / 2 + 'px';
+            sparkle.style.top = rect.top + rect.height / 2 + 'px';
+            document.body.appendChild(sparkle);
+            
+            setTimeout(() => {
+                document.body.removeChild(sparkle);
+            }, 1000);
+        }
+
+        // 拒绝按钮点击事件
+        rejectBtn.addEventListener('click', function() {
+            rejectCount++;
+            
+            // 添加移动动画
+            this.classList.add('moving');
+            setTimeout(() => {
+                this.classList.remove('moving');
+            }, 500);
+
+            // 移动按钮到随机位置
+            const position = getSafeRandomPosition(this, 100);
+            
+            // 最终安全验证
+            const buttonWidth = 120;
+            const buttonHeight = 50;
+            const padding = 100;
+            
+            const viewportWidth = document.documentElement.clientWidth;
+            const viewportHeight = document.documentElement.clientHeight;
+            const finalX = Math.max(padding, Math.min(position.x, viewportWidth - buttonWidth - padding));
+            const finalY = Math.max(padding, Math.min(position.y, viewportHeight - buttonHeight - padding));
+            
+            this.style.position = 'fixed';
+            this.style.left = finalX + 'px';
+            this.style.top = finalY + 'px';
+            this.style.zIndex = '1000';
+            
+            // 调试信息
+            console.log('原始位置:', position);
+            console.log('最终位置:', {x: finalX, y: finalY});
+            console.log('窗口尺寸:', viewportWidth, 'x', viewportHeight);
+            console.log('安全区域:', {minX: padding, maxX: viewportWidth - buttonWidth - padding, minY: padding, maxY: viewportHeight - buttonHeight - padding});
+            console.log('按钮是否在边界内:', finalX >= padding && finalX <= viewportWidth - buttonWidth - padding && finalY >= padding && finalY <= viewportHeight - buttonHeight - padding);
+
+            // 同意按钮变大
+            agreeBtn.classList.add('growing');
+            setTimeout(() => {
+                agreeBtn.classList.remove('growing');
+            }, 300);
+
+            // 增加同意按钮的大小
+            const currentScale = agreeBtn.style.transform ? 
+                parseFloat(agreeBtn.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+            const newScale = currentScale + 0.1;
+            agreeBtn.style.transform = `scale(${newScale})`;
+
+            // 创建闪烁效果
+            createSparkle(this);
+
+            // 显示消息
+            const messages = [
+                '别跑啊！再考虑考虑嘛~',
+                '真的不再想想吗？',
+                '音乐很棒的哦！',
+                '求求你了~',
+                '最后一次机会！',
+                '你忍心拒绝吗？',
+                '音乐在召唤你！'
+            ];
+            
+            const randomMessage = messages[Math.min(rejectCount - 1, messages.length - 1)];
+            message.textContent = randomMessage;
+            message.classList.add('show');
+
+            // 3秒后隐藏消息
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 3000);
+        });
+
+        // 同意按钮点击事件
+        agreeBtn.addEventListener('click', function() {
+            message.textContent = '太好了！让我们一起享受音乐吧！🎵';
+            message.classList.add('show');
+            
+            // 创建庆祝效果
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    createSparkle(this);
+                }, i * 100);
+            }
+
+            // 禁用按钮
+            agreeBtn.disabled = true;
+            rejectBtn.disabled = true;
+            
+            // 5秒后重置
+            setTimeout(() => {
+                location.reload();
+            }, 5000);
+        });
+
+        // 防止拒绝按钮被点击太多次后移出屏幕
+        rejectBtn.addEventListener('mouseenter', function() {
+            if (rejectCount > 5) {
+                const position = getSafeRandomPosition(this, 100);
+                const buttonWidth = 120;
+                const buttonHeight = 50;
+                const padding = 100;
+                const viewportWidth = document.documentElement.clientWidth;
+                const viewportHeight = document.documentElement.clientHeight;
+                
+                const finalX = Math.max(padding, Math.min(position.x, viewportWidth - buttonWidth - padding));
+                const finalY = Math.max(padding, Math.min(position.y, viewportHeight - buttonHeight - padding));
+                
+                this.style.position = 'fixed';
+                this.style.left = finalX + 'px';
+                this.style.top = finalY + 'px';
+            }
+        });
+
+        // 窗口大小改变时重新计算位置
+        window.addEventListener('resize', function() {
+            if (rejectBtn.style.position === 'fixed') {
+                const position = getSafeRandomPosition(rejectBtn, 100);
+                const buttonWidth = 120;
+                const buttonHeight = 50;
+                const padding = 100;
+                const viewportWidth = document.documentElement.clientWidth;
+                const viewportHeight = document.documentElement.clientHeight;
+                
+                const finalX = Math.max(padding, Math.min(position.x, viewportWidth - buttonWidth - padding));
+                const finalY = Math.max(padding, Math.min(position.y, viewportHeight - buttonHeight - padding));
+                
+                rejectBtn.style.left = finalX + 'px';
+                rejectBtn.style.top = finalY + 'px';
+            }
+        });
+    </script>
+</body>
+</html>
