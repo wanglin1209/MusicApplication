@@ -152,6 +152,69 @@
                 opacity: 0;
             }
         }
+
+        /* 黄豆表情样式 */
+        .bean {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 1500;
+        }
+
+        .bean-face {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 40% 30%, #ffd76a, #ffbc42 70%);
+            border-radius: 120px / 160px;
+            box-shadow: inset -10px -20px 0 rgba(0,0,0,0.06), 0 12px 30px rgba(0,0,0,0.25);
+            position: relative;
+        }
+
+        .eye {
+            position: absolute;
+            top: 34%;
+            width: 46px;
+            height: 46px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .eye.left { left: 28%; }
+        .eye.right { right: 28%; }
+
+        .eye .pupil {
+            display: block;
+            width: 16px;
+            height: 16px;
+            background: #222;
+            border-radius: 50%;
+            transform: translate(0,0);
+            transition: transform 0.05s linear;
+        }
+
+        .mouth {
+            position: absolute;
+            left: 50%;
+            bottom: 28%;
+            width: 90px;
+            height: 60px;
+            transform: translateX(-50%);
+            border-radius: 0 0 90px 90px;
+            background: #b33;
+            box-shadow: inset 0 -8px 0 rgba(0,0,0,0.15);
+            transition: all 0.12s ease;
+            overflow: hidden;
+        }
         
         /* 顶部标题区域 */
         .header {
@@ -193,6 +256,15 @@
 
     <div class="container">
         <div class="message" id="message"></div>
+    </div>
+
+    <!-- 黄豆表情 -->
+    <div class="bean" id="bean">
+        <div class="bean-face">
+            <div class="eye left"><span class="pupil"></span></div>
+            <div class="eye right"><span class="pupil"></span></div>
+            <div class="mouth" id="beanMouth"></div>
+        </div>
     </div>
 
     <div class="bottom-actions">
@@ -374,6 +446,67 @@
                 rejectBtn.style.left = finalX + 'px';
                 rejectBtn.style.top = finalY + 'px';
             }
+        });
+
+        // 眼睛跟随与情绪变化
+        const bean = document.getElementById('bean');
+        const beanMouth = document.getElementById('beanMouth');
+        const pupils = bean.querySelectorAll('.pupil');
+
+        function updateEyes(clientX, clientY) {
+            const rect = bean.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height * 0.38;
+            const dx = clientX - centerX;
+            const dy = clientY - centerY;
+            const angle = Math.atan2(dy, dx);
+            const maxOffset = 10;
+            const offsetX = Math.cos(angle) * maxOffset;
+            const offsetY = Math.sin(angle) * maxOffset;
+            pupils.forEach(p => {
+                p.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+            });
+        }
+
+        function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+        function updateEmotion(clientX, clientY) {
+            const agreeRect = agreeBtn.getBoundingClientRect();
+            const rejectRect = rejectBtn.getBoundingClientRect();
+
+            function distToRect(r) {
+                const cx = clamp(clientX, r.left, r.right);
+                const cy = clamp(clientY, r.top, r.bottom);
+                const dx = clientX - cx, dy = clientY - cy;
+                return Math.hypot(dx, dy);
+            }
+
+            const dAgree = distToRect(agreeRect);
+            const dReject = distToRect(rejectRect);
+
+            const range = 400;
+            const joy = clamp(1 - dAgree / range, 0, 1);
+            const fear = clamp(1 - dReject / range, 0, 1);
+            const mood = joy - fear; // [-1,1]
+
+            const baseWidth = 90;
+            const baseHeight = 60;
+            const smile = clamp(mood, -1, 1);
+            const mouthHeight = baseHeight * (0.4 + (smile > 0 ? 0.6 * smile : 0.1 * (1 + smile)));
+            const mouthWidth = baseWidth * (0.8 + 0.2 * (smile > 0 ? 1 : 1 + smile));
+            beanMouth.style.height = `${mouthHeight}px`;
+            beanMouth.style.width = `${mouthWidth}px`;
+            beanMouth.style.borderRadius = smile >= 0 ? '0 0 90px 90px' : '90px 90px 0 0';
+            beanMouth.style.bottom = smile >= 0 ? '26%' : '34%';
+            beanMouth.style.background = smile >= 0 ? '#b33' : '#662';
+
+            bean.style.transform = `translate(-50%, -50%) rotate(${(fear - joy) * 4}deg)`;
+            bean.style.filter = `saturate(${1 + joy * 0.4}) brightness(${1 + joy * 0.2})`;
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            updateEyes(e.clientX, e.clientY);
+            updateEmotion(e.clientX, e.clientY);
         });
     </script>
 </body>
