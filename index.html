@@ -159,8 +159,8 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
-            width: 200px;
-            height: 260px;
+            width: 300px;
+            height: 300px; /* 放大表情 */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -171,49 +171,71 @@
         .bean-face {
             width: 100%;
             height: 100%;
-            background: radial-gradient(ellipse at 40% 30%, #ffd76a, #ffbc42 70%);
-            border-radius: 120px / 160px;
-            box-shadow: inset -10px -20px 0 rgba(0,0,0,0.06), 0 12px 30px rgba(0,0,0,0.25);
+            --topColor: #7fd06b;
+            --bottomColor: #ffc142;
+            background: radial-gradient(circle at 30% 28%, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.28) 18%, rgba(0,0,0,0) 42%),
+                        linear-gradient(to bottom, var(--topColor) 0%, var(--topColor) 35%, var(--bottomColor) 100%); /* 自上而下的渐变，可动态调整 */
+            border-radius: 50%;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.25), inset 0 -10px 30px rgba(0,0,0,0.12);
             position: relative;
         }
 
         .eye {
             position: absolute;
-            top: 34%;
-            width: 46px;
-            height: 46px;
+            top: 33%;
+            width: 60px;
+            height: 60px;
             background: #fff;
             border-radius: 50%;
-            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.06);
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.12);
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        .eye.left { left: 28%; }
-        .eye.right { right: 28%; }
+        .eye.left { left: 24%; }
+        .eye.right { right: 24%; }
 
         .eye .pupil {
             display: block;
-            width: 16px;
-            height: 16px;
-            background: #222;
+            width: 26px; /* 黑眼球更大更可爱 */
+            height: 26px;
+            background: radial-gradient(circle at 30% 30%, #333 20%, #111 80%);
             border-radius: 50%;
             transform: translate(0,0);
             transition: transform 0.05s linear;
         }
 
+        /* 已移除眉毛样式 */
+
+        .blush {
+            position: absolute;
+            top: 54%;
+            width: 58px;
+            height: 26px;
+            background: radial-gradient(circle at 50% 50%, rgba(255,110,110,0.35), rgba(255,110,110,0));
+            border-radius: 50%;
+            filter: blur(0.6px);
+            opacity: 0.6;
+            transition: opacity 0.2s ease;
+        }
+        .blush.left { left: 14%; }
+        .blush.right { right: 14%; }
+
+        /* mouth 样式 */
         .mouth {
             position: absolute;
-            left: 50%;
-            bottom: 28%;
-            width: 90px;
-            height: 60px;
-            transform: translateX(-50%);
-            border-radius: 0 0 90px 90px;
-            background: #b33;
-            box-shadow: inset 0 -8px 0 rgba(0,0,0,0.15);
-            transition: all 0.12s ease;
-            overflow: hidden;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .mouth path.lip { display: none; }
+        .mouth path.inner {
+            fill: url(#mouthGrad);
+        }
+        .mouth rect.tooth {
+            display: none; /* 暂时隐藏牙齿 */
         }
         
         /* 顶部标题区域 */
@@ -263,7 +285,24 @@
         <div class="bean-face">
             <div class="eye left"><span class="pupil"></span></div>
             <div class="eye right"><span class="pupil"></span></div>
-            <div class="mouth" id="beanMouth"></div>
+            <div class="blush left"></div>
+            <div class="blush right"></div>
+                <!-- 嘴巴（SVG 可形变） -->
+                <svg class="mouth" id="beanMouth" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <linearGradient id="mouthGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#aa1010"/>
+                            <stop offset="70%" stop-color="#c61616"/>
+                            <stop offset="100%" stop-color="#7b0d0d"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- 预留（隐藏）上唇路径，已禁用显示 -->
+                    <path id="lipPath" class="lip" d="M60 200 C 120 200, 180 200, 240 200"/>
+                    <!-- 内部红色张口区域 -->
+                    <path id="innerPath" class="inner" d="M110 190 C 150 240, 150 240, 190 190 C 190 230, 110 230, 110 190 Z"/>
+                    <!-- 上门牙 -->
+                    <rect id="toothRect" class="tooth" x="142" y="188" width="26" height="16"/>
+                </svg>
         </div>
     </div>
 
@@ -451,7 +490,16 @@
         // 眼睛跟随与情绪变化
         const bean = document.getElementById('bean');
         const beanMouth = document.getElementById('beanMouth');
+        const lipPath = document.getElementById('lipPath');
+        const innerPath = document.getElementById('innerPath');
+        const toothRect = document.getElementById('toothRect');
         const pupils = bean.querySelectorAll('.pupil');
+        const eyebrows = bean.querySelectorAll('.eyebrow');
+        const blushes = bean.querySelectorAll('.blush');
+
+        // 目标状态用于平滑过渡
+        let target = { px: 0, py: 0, smile: 0, joy: 0, fear: 0 };
+        let current = { px: 0, py: 0, smile: 0, joy: 0, fear: 0 };
 
         function updateEyes(clientX, clientY) {
             const rect = bean.getBoundingClientRect();
@@ -460,12 +508,9 @@
             const dx = clientX - centerX;
             const dy = clientY - centerY;
             const angle = Math.atan2(dy, dx);
-            const maxOffset = 10;
-            const offsetX = Math.cos(angle) * maxOffset;
-            const offsetY = Math.sin(angle) * maxOffset;
-            pupils.forEach(p => {
-                p.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-            });
+            const maxOffset = 10; // 收敛，避免“乱飞”
+            target.px = Math.cos(angle) * maxOffset;
+            target.py = Math.sin(angle) * maxOffset;
         }
 
         function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -484,30 +529,86 @@
             const dAgree = distToRect(agreeRect);
             const dReject = distToRect(rejectRect);
 
-            const range = 400;
+            const range = 420; // 影响范围
             const joy = clamp(1 - dAgree / range, 0, 1);
             const fear = clamp(1 - dReject / range, 0, 1);
-            const mood = joy - fear; // [-1,1]
+            let mood = joy - fear; // [-1,1]
+            // 明确两种表情：高权重时更接近参考图的极端表情
+            if (joy - fear > 0.2 && joy > 0.6) mood = 0.95; // 开心
+            if (fear - joy > 0.2 && fear > 0.6) mood = -0.95; // 不开心/害怕
+            target.joy = joy; target.fear = fear; target.smile = mood;
 
-            const baseWidth = 90;
-            const baseHeight = 60;
-            const smile = clamp(mood, -1, 1);
-            const mouthHeight = baseHeight * (0.4 + (smile > 0 ? 0.6 * smile : 0.1 * (1 + smile)));
-            const mouthWidth = baseWidth * (0.8 + 0.2 * (smile > 0 ? 1 : 1 + smile));
-            beanMouth.style.height = `${mouthHeight}px`;
-            beanMouth.style.width = `${mouthWidth}px`;
-            beanMouth.style.borderRadius = smile >= 0 ? '0 0 90px 90px' : '90px 90px 0 0';
-            beanMouth.style.bottom = smile >= 0 ? '26%' : '34%';
-            beanMouth.style.background = smile >= 0 ? '#b33' : '#662';
-
-            bean.style.transform = `translate(-50%, -50%) rotate(${(fear - joy) * 4}deg)`;
-            bean.style.filter = `saturate(${1 + joy * 0.4}) brightness(${1 + joy * 0.2})`;
+            // 同步颜色：靠近拒绝上方偏绿，靠近同意下方偏黄
+            const face = bean.querySelector('.bean-face');
+            const topColor = fear > joy ? '#66c07a' : '#f7d268';
+            const bottomColor = fear > joy ? '#e7cf5b' : '#f9b935';
+            face.style.setProperty('--topColor', topColor);
+            face.style.setProperty('--bottomColor', bottomColor);
         }
+
+        // 平滑插值渲染，避免突兀
+        function animate() {
+            const lerp = (a,b,t)=>a+(b-a)*t;
+            current.px = lerp(current.px, target.px, 0.18);
+            current.py = lerp(current.py, target.py, 0.18);
+            current.smile = lerp(current.smile, target.smile, 0.12);
+            current.joy = lerp(current.joy, target.joy, 0.12);
+            current.fear = lerp(current.fear, target.fear, 0.12);
+
+            pupils.forEach(p => {
+                p.style.transform = `translate(${current.px}px, ${current.py}px)`;
+            });
+
+            const smile = clamp(current.smile, -1, 1);
+            // 嘴巴形变：-1(难过) → 0(过渡) → 1(开心)
+            renderMouth(smile);
+
+            bean.style.transform = `translate(-50%, -50%) rotate(${(current.fear - current.joy) * 2.5}deg)`;
+            bean.style.filter = `saturate(${1 + current.joy * 0.4}) brightness(${1 + current.joy * 0.2})`;
+
+            blushes.forEach(b => {
+                b.style.opacity = 0.35 + current.joy * 0.55;
+            });
+
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
 
         window.addEventListener('mousemove', (e) => {
             updateEyes(e.clientX, e.clientY);
             updateEmotion(e.clientX, e.clientY);
         });
+
+        // 根据情绪插值 mouth 几何（一个平边 + 一个大弧合并另外三边）
+        function renderMouth(t) {
+            function lerp(a,b,u){ return a+(b-a)*u; }
+
+            const yTop = 178; // 上沿更高
+            const openMax = 110; // 中间最大开口
+            const openMin = 70;  // 极端仍较大
+            const uOpen = 1 - Math.abs(t);
+            const yBottom = yTop + lerp(openMin, openMax, uOpen);
+
+            const width = 170; // 整体更大
+            const xLeft = 150 - width/2;
+            const xRight = 150 + width/2;
+
+            const depth = lerp(18, 36, Math.abs(t));
+
+            let d;
+            if (t >= 0) {
+                // 开心：上边保持平，其他三边合并为一个向下的大弧
+                const cY = yTop + (yBottom - yTop) * 0.85 + depth;
+                d = `M${xLeft} ${yTop} L${xRight} ${yTop} C ${xRight} ${cY}, ${xLeft} ${cY}, ${xLeft} ${yTop} Z`;
+            } else {
+                // 难过：下边保持平，其他三边合并为一个向上的大弧
+                const cY = yBottom - (yBottom - yTop) * 0.85 - depth;
+                d = `M${xLeft} ${yBottom} L${xRight} ${yBottom} C ${xRight} ${cY}, ${xLeft} ${cY}, ${xLeft} ${yBottom} Z`;
+            }
+
+            innerPath.setAttribute('d', d);
+            lipPath.setAttribute('d', `M${xLeft} ${yTop} L${xRight} ${yTop}`); // 隐藏的参考线
+        }
     </script>
 </body>
 </html>
